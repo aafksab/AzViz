@@ -5,7 +5,9 @@ function ConvertFrom-Network {
         [ValidateSet('Azure Resource Group')]
         [string] $TargetType = 'Azure Resource Group',
         [int] $CategoryDepth = 1,
-        [string[]] $ExcludeTypes
+        [string[]] $ExcludeTypes,
+        [ValidateSet('virtualNetworks','subnets','networkSecurityGroups','all')]
+        [string[]] $IncludeNetworkTypes  # explicitly include these network types when provided
     )
     
     begin {
@@ -24,6 +26,23 @@ function ConvertFrom-Network {
             "*Microsoft.Network/virtualNetworks/subnets*",
             "*Microsoft.Network/networkSecurityGroups*"
         ) 
+
+        # If caller provided NetworkObject Types to include, remove those patterns from the exclusion list
+        if ($IncludeNetworkTypes) {
+            if ($IncludeNetworkTypes -contains 'all') {
+            # include all network types -> clear exclusions
+            $Excluded_NetworkObjects = @()
+            }
+            else {
+                foreach ($nt in $IncludeNetworkTypes) {
+                    switch ($nt) {
+                    'virtualNetworks' { $Excluded_NetworkObjects = $Excluded_NetworkObjects | Where-Object { $_ -ne "*Microsoft.Network/virtualNetworks*" } }
+                    'subnets'         { $Excluded_NetworkObjects = $Excluded_NetworkObjects | Where-Object { $_ -ne "*Microsoft.Network/virtualNetworks/subnets*" } }
+                    'networkSecurityGroups' { $Excluded_NetworkObjects = $Excluded_NetworkObjects | Where-Object { $_ -ne "*Microsoft.Network/networkSecurityGroups*" } }
+                    }
+                }
+            }
+        }
                 
         if($ExcludeTypes){
             $Excluded_NetworkObjects += $ExcludeTypes
